@@ -1,126 +1,86 @@
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Scanner;
 
 /**
- * LongestSequence.java
+ * LongestSequencePseudo.java
  *
- * Problem Statement:
- *   Given a sequence of n integers, find the longest contiguous subsequence
- *   that contains at most 3 distinct values.
+ * EXACT translation of the pseudocode into Java.
+ * No fixes applied. Bugs from the pseudocode are preserved intentionally.
  *
- * Design (corrected from pseudocode):
- *   - readSequence()       : reads n and the n elements (1-based array)
- *   - computeMaxSeq()      : finds the start index and length of the longest valid window
- *   - computeASequence()   : extends a window from pozStart while <=3 distinct values
- *   - still3Values()       : checks if adding an element keeps distinct count <= 3
- *   - printSequence()      : prints the result
- *
- * Defects fixed from pseudocode:
- *   1. i initialized to 1 (not 0) for 1-based indexing.
- *   2. i advanced to newPozStart after computeASequence, not just i+1.
- *   3. Typo "pozStar" corrected to "pozStart".
- *   4. still3Values() implemented (was missing in design).
- *   5. pozStart returned from computeASequence via int[] (Java pass-by-value).
+ * Known bugs (from review form):
+ *   D_01 - i starts at 0, but array is 1-based -> valE[0] is always 0 (garbage)
+ *   D_02 - i only increments in the Else branch -> infinite loop if lungFinala always > lungF
+ *   D_03 - still3Values receives only one element -> always returns true -> window never stops
+ *   D_04 - typo "pozStar" preserved as comment only (fixed to compile)
  */
-public class LongestSequence {
+public class LongestSequencePseudo {
 
-    /**
-     * Reads the sequence from standard input.
-     * Input format: first line is n; second line contains n space-separated integers.
-     *
-     * @param nrE  single-element array used to return the number of elements
-     * @return     1-based integer array of size nrE[0]+1
+    static int[] valE;
+    static int nrE;
+    static int pozF;
+    static int lungF;
+    static int pozStart;
+    static int lungFinala;
+
+    /*
+     * Still3Values(valE(i))
+     * Pseudocode passes a single element: Still3Values(valE(i))
+     * A single element trivially has 1 distinct value -> always returns true.
+     * This means the while loop in computeASequence NEVER stops early --
+     * it always runs until pozStart > nrE, consuming the whole remaining array.
      */
-    static int[] readSequence(int[] nrE) {
-        Scanner sc = new Scanner(System.in);
-        System.out.print("Enter number of elements: ");
-        nrE[0] = sc.nextInt();
-        int[] valE = new int[nrE[0] + 1]; // 1-based
-        System.out.print("Enter elements: ");
-        for (int i = 1; i <= nrE[0]; i++) {
-            valE[i] = sc.nextInt();
-        }
-        return valE;
+    static boolean still3Values(int element) {
+        return true; // single element always has <= 3 distinct values -- bug!
     }
 
-    /**
-     * Returns true if adding valE[pos] to the window tracked by freq
-     * keeps the number of distinct values at most 3.
-     *
-     * @param valE  the sequence array (1-based)
-     * @param pos   position of the next candidate element
-     * @param freq  frequency map of elements currently in the window
-     * @return      true if the window can be extended
+    /*
+     * Subalgorithm ComputeASequence(pozStart, nrE, valE, lungFinala)
+     * Input:  pozStart, nrE, valE
+     * Output: pozStart, lungFinala
      */
-    static boolean still3Values(int[] valE, int pos, Map<Integer, Integer> freq) {
-        int val = valE[pos];
-        if (freq.containsKey(val)) {
-            return true; // already tracked, distinct count unchanged
+    static void computeASequence() {
+        lungFinala = 0;
+        while (pozStart <= nrE && still3Values(valE[pozStart])) {
+            lungFinala = lungFinala + 1;
+            pozStart = pozStart + 1; // typo in pseudocode was "pozStar"
         }
-        return freq.size() < 3; // room for one more distinct value
     }
 
-    /**
-     * ComputeASequence: extends a contiguous window starting at pozStart
-     * for as long as the number of distinct values stays <= 3.
-     *
-     * @param pozStart  starting position (1-based)
-     * @param nrE       total number of elements
-     * @param valE      the sequence (1-based)
-     * @return          int[]{newPozStart, length}
-     *                  newPozStart = first position NOT included in this window
-     *                  length      = number of elements in the window
+    /*
+     * Subalgorithm ComputeMaxSeq(nrE, valE, pozF, lungF)
      */
-    static int[] computeASequence(int pozStart, int nrE, int[] valE) {
-        Map<Integer, Integer> freq = new HashMap<>();
-        int lungFinala = 0;
-
-        while (pozStart <= nrE && still3Values(valE, pozStart, freq)) {
-            freq.merge(valE[pozStart], 1, Integer::sum);
-            lungFinala++;
-            pozStart++; // corrected typo: was "pozStar" in pseudocode
-        }
-        return new int[]{pozStart, lungFinala};
-    }
-
-    /**
-     * ComputeMaxSeq: scans all starting positions, tracking the longest window.
-     *
-     * @param nrE   number of elements
-     * @param valE  the sequence (1-based)
-     * @return      int[]{pozF, lungF} – start index and length of the best window
-     */
-    static int[] computeMaxSeq(int nrE, int[] valE) {
-        int i     = 1;  // Fix: start at 1 (not 0) for 1-based indexing
-        int pozF  = 1;
-        int lungF = 0;
+    static void computeMaxSeq() {
+        int i = 0;  // bug: should be 1 for 1-based array
+        pozF  = 0;
+        lungF = 0;
 
         while (i <= nrE) {
-            int[] result    = computeASequence(i, nrE, valE);
-            int newPoz      = result[0];
-            int lungFinala  = result[1];
+            pozStart = i;
+            computeASequence();
 
             if (lungFinala > lungF) {
                 pozF  = i;
                 lungF = lungFinala;
+                // bug: i is NOT incremented here -> infinite loop!
+            } else {
+                i = i + 1;
             }
-            // Fix: advance i to newPoz (past the current window), not just i+1
-            i = (newPoz > i) ? newPoz : i + 1;
         }
-        return new int[]{pozF, lungF};
     }
 
-    /**
-     * Prints the starting position, length, and elements of the longest sequence.
-     *
-     * @param valE  the sequence (1-based)
-     * @param pozF  start index of the longest sequence
-     * @param lungF length of the longest sequence
-     */
-    static void printSequence(int[] valE, int pozF, int lungF) {
-        System.out.println("Longest sequence start index (1-based): " + pozF);
-        System.out.println("Longest sequence length               : " + lungF);
+    static void readSequence() {
+        Scanner sc = new Scanner(System.in);
+        System.out.print("Enter number of elements: ");
+        nrE  = sc.nextInt();
+        valE = new int[nrE + 1];
+        System.out.print("Enter elements: ");
+        for (int i = 1; i <= nrE; i++) {
+            valE[i] = sc.nextInt();
+        }
+    }
+
+    static void printSequence() {
+        System.out.println("Longest sequence start index : " + pozF);
+        System.out.println("Longest sequence length      : " + lungF);
         System.out.print("Elements: ");
         for (int i = pozF; i < pozF + lungF; i++) {
             System.out.print(valE[i] + " ");
@@ -129,10 +89,8 @@ public class LongestSequence {
     }
 
     public static void main(String[] args) {
-        int[] nrE  = new int[1];
-        int[] valE = readSequence(nrE);
-
-        int[] res = computeMaxSeq(nrE[0], valE);
-        printSequence(valE, res[0], res[1]);
+        readSequence();
+        computeMaxSeq();
+        printSequence();
     }
 }
